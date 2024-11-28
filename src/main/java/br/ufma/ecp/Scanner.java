@@ -1,6 +1,11 @@
 package br.ufma.ecp;
 
-import static br.ufma.ecp.token.TokenType.*;
+import static br.ufma.ecp.token.TokenType.EOF;
+import static br.ufma.ecp.token.TokenType.IDENT;
+import static br.ufma.ecp.token.TokenType.ILLEGAL;
+import static br.ufma.ecp.token.TokenType.MINUS;
+import static br.ufma.ecp.token.TokenType.NUMBER;
+import static br.ufma.ecp.token.TokenType.PLUS;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
