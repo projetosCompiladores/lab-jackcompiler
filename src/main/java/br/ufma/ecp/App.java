@@ -27,7 +27,7 @@ public class App
         }
 
         // ALUNOS
-        // FILIPI PINHEIRO
+        // FILIPEz PINHEIRO
         // FERNANDO CASTRO
 
         /*
