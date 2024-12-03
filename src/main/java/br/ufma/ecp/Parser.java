@@ -68,6 +68,22 @@ public class Parser {
         printNonTerminal("/letStatement");
     }
 
+    public void parseStatements() {
+        while (!peekTokenIs(TokenType.EOF)) {
+            parseStatement();
+        }
+    }
+
+    public void parseStatement() {
+        if (peekTokenIs(LET)) {
+            parseLet();
+        } else if (peekTokenIs(DO)) {
+            parseDo();
+        } else {
+            throw error(peekToken, "Expected a statement");
+        }
+    }
+
     static public boolean isOperator(String op) {
         return op != "" && "+-*/<>=~&|".contains(op);
     }
