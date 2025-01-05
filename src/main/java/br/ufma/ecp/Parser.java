@@ -1,5 +1,9 @@
 package br.ufma.ecp;
 
+import br.ufma.ecp.VMWriter.Command;
+import br.ufma.ecp.VMWriter.Segment;
+import br.ufma.ecp.token.Token;
+import br.ufma.ecp.token.TokenType;
 import static br.ufma.ecp.token.TokenType.AND;
 import static br.ufma.ecp.token.TokenType.ASTERISK;
 import static br.ufma.ecp.token.TokenType.BOOLEAN;
@@ -43,9 +47,6 @@ import static br.ufma.ecp.token.TokenType.VAR;
 import static br.ufma.ecp.token.TokenType.VOID;
 import static br.ufma.ecp.token.TokenType.WHILE;
 
-import br.ufma.ecp.token.Token;
-import br.ufma.ecp.token.TokenType;
-
 public class Parser {
 
     private static class ParseError extends RuntimeException {
@@ -55,6 +56,7 @@ public class Parser {
     private Token currentToken;
     private Token peekToken;
     private StringBuilder xmlOutput = new StringBuilder();
+    private VMWriter vmWriter = new VMWriter();
 
     public Parser(byte[] input) {
         scan = new Scanner(input);
@@ -236,8 +238,10 @@ public class Parser {
         printNonTerminal("expression");
         parseTerm();
         while (peekTokenIs(PLUS, MINUS, ASTERISK, SLASH, LT, GT, EQ, AND, OR)) {
+            var ope = peekToken.type;
             expectPeek(peekToken.type);
             parseTerm();
+            compileOperators(ope);
         }
         printNonTerminal("/expression");
     }
@@ -246,6 +250,7 @@ public class Parser {
         printNonTerminal("term");
         if (peekTokenIs(NUMBER)) {
             expectPeek(NUMBER);
+            vmWriter.writePush(Segment.CONST, Integer.parseInt(currentToken.lexeme));
         } else if (peekTokenIs(STRING)) {
             expectPeek(STRING);
         } else if (peekTokenIs(TRUE, FALSE, NULL, THIS)) {
@@ -322,5 +327,38 @@ public class Parser {
 
     private ParseError error(Token token, String message) {
         throw new ParseError();
+    }
+
+    public void compileOperators(TokenType type) {
+
+        if (type == ASTERISK) {
+            vmWriter.writeCall("Math.multiply", 2);
+        } else if (type == SLASH) {
+            vmWriter.writeCall("Math.divide", 2);
+        } else {
+            vmWriter.writeArithmetic(typeOperator(type));
+        }
+    }
+
+    private Command typeOperator(TokenType type) {
+        if (type == PLUS)
+            return Command.ADD;
+        if (type == MINUS)
+            return Command.SUB;
+        if (type == LT)
+            return Command.LT;
+        if (type == GT)
+            return Command.GT;
+        if (type == EQ)
+            return Command.EQ;
+        if (type == AND)
+            return Command.AND;
+        if (type == OR)
+            return Command.OR;
+        return null;
+    }
+
+    public String VMOutput() {
+        return vmWriter.vmOutput();
     }
 }
