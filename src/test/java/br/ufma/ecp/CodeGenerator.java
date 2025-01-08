@@ -1,9 +1,8 @@
 package br.ufma.ecp;
 
-import static org.junit.Assert.assertEquals;
-
 import java.nio.charset.StandardCharsets;
 
+import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 public class CodeGenerator extends TestSupport{
