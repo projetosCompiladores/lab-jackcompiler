@@ -594,14 +594,26 @@ public class Parser {
         while (peekTokenIs(VAR)) {
             parseVarDec();
         }
-				var nlocals = symTable.varCount(Kind.VAR);
+        var nlocals = symTable.varCount(Kind.VAR);
 
         vmWriter.writeFunction(functionName, nlocals);
+
+        if (subroutineType == CONSTRUCTOR) {
+            vmWriter.writePush(Segment.CONST, symTable.varCount(Kind.FIELD));
+            vmWriter.writeCall("Memory.alloc", 1);
+            vmWriter.writePop(Segment.POINTER, 0);
+        }
+
+        if (subroutineType == METHOD) {
+            vmWriter.writePush(Segment.ARG, 0);
+            vmWriter.writePop(Segment.POINTER, 0);
+        }
 
         parseStatements();
         expectPeek(RBRACE);
         printNonTerminal("/subroutineBody");
     }
+    
 
     private Segment kind2Segment(Kind kind) {
         if (kind == Kind.STATIC)
