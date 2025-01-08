@@ -1,11 +1,5 @@
 package br.ufma.ecp;
 
-import br.ufma.ecp.SymbolTable.Kind;
-import br.ufma.ecp.SymbolTable.Symbol;
-import br.ufma.ecp.VMWriter.Command;
-import br.ufma.ecp.VMWriter.Segment;
-import br.ufma.ecp.token.Token;
-import br.ufma.ecp.token.TokenType;
 import static br.ufma.ecp.token.TokenType.AND;
 import static br.ufma.ecp.token.TokenType.ASTERISK;
 import static br.ufma.ecp.token.TokenType.BOOLEAN;
@@ -49,6 +43,13 @@ import static br.ufma.ecp.token.TokenType.TRUE;
 import static br.ufma.ecp.token.TokenType.VAR;
 import static br.ufma.ecp.token.TokenType.VOID;
 import static br.ufma.ecp.token.TokenType.WHILE;
+
+import br.ufma.ecp.SymbolTable.Kind;
+import br.ufma.ecp.SymbolTable.Symbol;
+import br.ufma.ecp.VMWriter.Command;
+import br.ufma.ecp.VMWriter.Segment;
+import br.ufma.ecp.token.Token;
+import br.ufma.ecp.token.TokenType;
 
 public class Parser {
 
@@ -363,6 +364,7 @@ public class Parser {
     void parseDo() {
         printNonTerminal("doStatement");
         expectPeek(DO);
+        expectPeek(IDENT);
         parseSubroutineCall();
         expectPeek(SEMICOLON);
         vmWriter.writePop(Segment.TEMP, 0);

@@ -1,8 +1,9 @@
 package br.ufma.ecp;
 
+import static org.junit.Assert.assertEquals;
+
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 public class CodeGenerator extends TestSupport{
@@ -443,7 +444,7 @@ public class CodeGenerator extends TestSupport{
                     return;
                 }
             }
-            """;
+            """;;
         var parser = new Parser(input.getBytes(StandardCharsets.UTF_8));
         parser.parse();
         String actual = parser.VMOutput();
