@@ -1,6 +1,7 @@
 package br.ufma.ecp;
 
 import br.ufma.ecp.SymbolTable.Kind;
+import br.ufma.ecp.SymbolTable.Symbol;
 import br.ufma.ecp.VMWriter.Command;
 import br.ufma.ecp.VMWriter.Segment;
 import br.ufma.ecp.token.Token;
@@ -66,6 +67,8 @@ public class Parser {
 
     public Parser(byte[] input) {
         scan = new Scanner(input);
+        vmWriter = new VMWriter();
+        
         nextToken();
     }
 
@@ -249,17 +252,45 @@ public class Parser {
     }
 
     void parseLet() {
+
+        var isArray = false;
+
         printNonTerminal("letStatement");
-        expectPeek(LET);
-        expectPeek(IDENT);
-        if (peekTokenIs(LBRACKET)) {
+        expectPeek(TokenType.LET);
+        expectPeek(TokenType.IDENT);
+
+        var symbol = symTable.resolve(currentToken.lexeme);
+
+        if (peekTokenIs(TokenType.LBRACKET)) { // array
             expectPeek(LBRACKET);
             parseExpression();
+            
+            vmWriter.writePush(kind2Segment(symbol.kind()), symbol.index());
+            vmWriter.writeArithmetic(Command.ADD);
+    
             expectPeek(RBRACKET);
+
+
+
+            isArray = true;
         }
-        expectPeek(EQ);
+
+        expectPeek(TokenType.EQ);
         parseExpression();
-        expectPeek(SEMICOLON);
+
+        if (isArray) {
+            vmWriter.writePop(Segment.TEMP, 0);    // push result back onto stack
+            vmWriter.writePop(Segment.POINTER, 1); // pop address pointer into pointer 1
+            vmWriter.writePush(Segment.TEMP, 0);   // push result back onto stack
+            vmWriter.writePop(Segment.THAT, 0);    // Store right hand side evaluation in THAT 0.
+    
+
+        } else {
+            vmWriter.writePop(kind2Segment(symbol.kind()), symbol.index());
+        }
+
+
+        expectPeek(TokenType.SEMICOLON);
         printNonTerminal("/letStatement");
     }
 
@@ -334,6 +365,8 @@ public class Parser {
         expectPeek(DO);
         parseSubroutineCall();
         expectPeek(SEMICOLON);
+        vmWriter.writePop(Segment.TEMP, 0);
+
         printNonTerminal("/doStatement");
     }
 
@@ -397,12 +430,22 @@ public class Parser {
                 vmWriter.writeArithmetic(Command.NOT);
         } else if (peekTokenIs(IDENT)) {
             expectPeek(IDENT);
+            Symbol sym = symTable.resolve(currentToken.lexeme);
             if (peekTokenIs(LPAREN, DOT)) {
                 parseSubroutineCall();
-            } else if (peekTokenIs(LBRACKET)) {
+            } else if (peekTokenIs(LBRACKET)) { // array
                 expectPeek(LBRACKET);
                 parseExpression();
+                vmWriter.writePush(kind2Segment(sym.kind()), sym.index());
+                vmWriter.writeArithmetic(Command.ADD);
+
+
                 expectPeek(RBRACKET);
+                vmWriter.writePop(Segment.POINTER, 1); // pop address pointer into pointer 1
+                vmWriter.writePush(Segment.THAT, 0);   // push the value of the address pointer back onto stack
+
+            } else {
+                vmWriter.writePush(kind2Segment(sym.kind()), sym.index());
             }
         } else if (peekTokenIs(LPAREN)) {
             expectPeek(LPAREN);
@@ -414,27 +457,63 @@ public class Parser {
         printNonTerminal("/term");
     }
 
-    void parseSubroutineCall() {
-        expectPeek(IDENT);
-        if (peekTokenIs(DOT)) {
-            expectPeek(DOT);
-            expectPeek(IDENT);
-        }
-        expectPeek(LPAREN);
-        parseExpressionList();
-        expectPeek(RPAREN);
-    }
+   void parseSubroutineCall() {     
+        
 
-    void parseExpressionList() {
-        printNonTerminal("expressionList");
-        if (!peekTokenIs(RPAREN)) {
-            parseExpression();
-            while (peekTokenIs(COMMA)) {
-                expectPeek(COMMA);
-                parseExpression();
+            var nArgs = 0;
+    
+            var ident = currentToken.lexeme;
+            var symbol = symTable.resolve(ident); // classe ou objeto
+            var functionName = ident + ".";
+    
+            if (peekTokenIs(LPAREN)) { // método da propria classe
+                expectPeek(LPAREN);
+                vmWriter.writePush(Segment.POINTER, 0);
+                nArgs = parseExpressionList() + 1;
+                expectPeek(RPAREN);
+                functionName = className + "." + ident;
+            } else {
+                // pode ser um metodo de um outro objeto ou uma função
+                expectPeek(DOT);
+                expectPeek(IDENT); // nome da função
+    
+                if (symbol != null) { // é um metodo
+                    functionName = symbol.type() + "." + currentToken.lexeme;
+                    vmWriter.writePush(kind2Segment(symbol.kind()), symbol.index());
+                    nArgs = 1; // do proprio objeto
+                } else {
+                    functionName += currentToken.lexeme; // é uma função
+                }
+    
+                expectPeek(LPAREN);
+                nArgs += parseExpressionList();
+    
+                expectPeek(RPAREN);
             }
+    
+            vmWriter.writeCall(functionName, nArgs);
+      }
+
+    int parseExpressionList() {
+        printNonTerminal("expressionList");
+
+        var nArgs = 0;
+
+        if (!peekTokenIs(RPAREN)) // verifica se tem pelo menos uma expressao
+        {
+            parseExpression();
+            nArgs = 1;
         }
+
+        // procurando as demais
+        while (peekTokenIs(COMMA)) {
+            expectPeek(COMMA);
+            parseExpression();
+            nArgs++;
+        }
+
         printNonTerminal("/expressionList");
+        return nArgs;
     }
 
     public String XMLOutput() {
@@ -520,5 +599,17 @@ public class Parser {
         parseStatements();
         expectPeek(RBRACE);
         printNonTerminal("/subroutineBody");
+    }
+
+    private Segment kind2Segment(Kind kind) {
+        if (kind == Kind.STATIC)
+            return Segment.STATIC;
+        if (kind == Kind.FIELD)
+            return Segment.THIS;
+        if (kind == Kind.VAR)
+            return Segment.LOCAL;
+        if (kind == Kind.ARG)
+            return Segment.ARG;
+        return null;
     }
 }

@@ -252,7 +252,6 @@ public class ParserTest extends TestSupport {
     parser.parse();
     var result = parser.XMLOutput();
     System.out.println(result);
-
     }
 
 }
